@@ -5,7 +5,7 @@ extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
-use image::{GenericImage, Pixel};
+use image::{GenericImage, ImageBuffer, Pixel, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
@@ -59,6 +59,12 @@ impl Rectangle {
     }
 }
 
+fn print_image_as_char(img: &ImageBuffer<Rgba<u8>, Vec<u8>>) {
+    let rgb = img.get_pixel(0, 0).to_rgb();
+    print!("{}", RGB(rgb[0], rgb[1], rgb[2]).paint(unicode::SQUARE.to_string()))
+
+}
+
 fn main() {
     let matches = App::new("spyglass")
         .version("0.1")
@@ -75,18 +81,13 @@ fn main() {
     let mut img = image::open(img_path).unwrap();
     let img_dims = Rectangle::from_tuple(img.dimensions());
     let mut screen_dims = Rectangle::from_termsize();
-    println!("screen: {:?}", screen_dims);
     screen_dims = Rectangle::frame(&img_dims, &screen_dims);
     let char_dims = Rectangle::split(&img_dims, &screen_dims);
 
-    println!("img: {:?}", img_dims);
-    println!("screen: {:?}", screen_dims);
-    println!("char: {:?}", char_dims);
     for col in 0..screen_dims.height {
         for row in 0..screen_dims.width {
             let sub = img.sub_image(row * char_dims.width, col * char_dims.height, char_dims.width, char_dims.height).to_image();
-            let rgb = sub.get_pixel(0, 0).to_rgb();
-            print!("{}", RGB(rgb[0], rgb[1], rgb[2]).paint(unicode::SQUARE.to_string()))
+            print_image_as_char(&sub);
         }
         println!("");
     }
