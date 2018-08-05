@@ -1,6 +1,7 @@
 extern crate ansi_term;
 extern crate clap;
 extern crate image;
+extern crate termsize;
 
 use clap::{App, Arg};
 use image::GenericImage;
@@ -24,8 +25,15 @@ fn main() {
     let img_path = matches.value_of("INPUT").unwrap();
     let img = image::open(img_path).unwrap();
     println!("dimensions {:?}", img.dimensions());
-    println!(
-        "{}",
-        ansi_term::Colour::RGB(70, 130, 180).paint(unicode::SQUARE.to_string())
+
+    let dims = termsize::get().unwrap();
+    for _row in 0..dims.rows - 1 {
+        for _col in 0..dims.cols {
+            print!(
+            "{}",
+            ansi_term::Colour::RGB(70, 130, 180).paint(unicode::SQUARE.to_string())
     )
+        }
+        println!("");
+    }
 }
