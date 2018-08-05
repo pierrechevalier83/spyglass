@@ -9,6 +9,7 @@ use image::{GenericImage, Pixel, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
+    pub const UPPER_HALF: char = '▀';
 }
 
 #[derive(Debug)]
@@ -59,9 +60,15 @@ impl Rectangle {
     }
 }
 
+fn to_ansi(rgb: image::Rgb<u8>) -> ansi_term::Color {
+    RGB(rgb[0], rgb[1], rgb[2])
+}
+
+
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
-    let rgb = img.get_pixel(0, 0).to_rgb();
-    print!("{}", RGB(rgb[0], rgb[1], rgb[2]).paint(unicode::SQUARE.to_string()))
+    let top_rgb = img.get_pixel(0, 0).to_rgb();
+    let bottom_rgb = img.get_pixel(img.width() - 1, img.height() - 1).to_rgb();
+    print!("{}", to_ansi(top_rgb).on(to_ansi(bottom_rgb)).paint(unicode::UPPER_HALF.to_string()))
 
 }
 
