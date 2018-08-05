@@ -5,7 +5,7 @@ extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
-use image::{GenericImage, ImageBuffer, Pixel, Rgba};
+use image::{GenericImage, Pixel, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
@@ -59,7 +59,7 @@ impl Rectangle {
     }
 }
 
-fn print_image_as_char(img: &ImageBuffer<Rgba<u8>, Vec<u8>>) {
+fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
     let rgb = img.get_pixel(0, 0).to_rgb();
     print!("{}", RGB(rgb[0], rgb[1], rgb[2]).paint(unicode::SQUARE.to_string()))
 
