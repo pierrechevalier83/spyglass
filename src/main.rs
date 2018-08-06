@@ -64,13 +64,11 @@ fn to_ansi(rgb: image::Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-fn average_rgb<'a, I>(pxs: I) -> image::Rgb<u8>
-where
-    I: Iterator<Item = (u32, u32, Rgba<u8>)>,
+fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> image::Rgb<u8>
 {
     let mut n = 0;
     let rgb =
-        pxs.map(|(_x, _y, p)| {
+        pxs.iter().map(|(_x, _y, p)| {
             n += 1;
             p.to_rgb()
         }).fold(image::Rgb([0, 0, 0]), |acc, x| image::Rgb::<usize> {
@@ -83,21 +81,20 @@ where
     image::Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
 }
 
-fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<Fn(&(u32, u32, Rgba<u8>)) -> bool> {
+fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<FnMut(&(u32, u32, Rgba<u8>)) -> bool> {
     match unicode_char {
         unicode::UPPER_HALF => Box::new(move |(_x, y, _p)| y < &(dims.height / 2)),
         _ => Box::new(move |_| true),
     }
 }
 
-fn pixels_fitness<Iter>(
-    pixels: Iter,
+fn pixels_fitness(
+    pixels: &[(u32, u32, Rgba<u8>)],
     color: image::Rgb<u8>,
 ) -> i32
-where
-    Iter: Iterator<Item = (u32, u32, Rgba<u8>)>,
 {
     pixels
+        .iter()
         .map(|(_, _, px_color)| {
             (px_color[0] as i32 - color[0] as i32).abs()
                 + (px_color[1] as i32 - color[1] as i32).abs()
@@ -106,30 +103,19 @@ where
         .sum()
 }
 
-fn unicode_fitness<Iter>(
-    fg_pixels: Iter,
-    bg_pixels: Iter,
-    fg_color: image::Rgb<u8>,
-    bg_color: image::Rgb<u8>,
-) -> i32
-where
-    Iter: Iterator<Item = (u32, u32, Rgba<u8>)>,
-{
-    pixels_fitness(fg_pixels, fg_color) + pixels_fitness(bg_pixels, bg_color)
-}
-
-fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
+fn print_image_as_char<'a, Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
     let unicode_char = unicode::UPPER_HALF;
     let img_dims = Rectangle::from_tuple(img.dimensions());
-    let fg_pixels = unicode_fg(unicode_char, img_dims);
-    let fg = img.pixels().filter(|x| fg_pixels(x));
-    let bg = img.pixels().filter(|x| !fg_pixels(x));
-    let fg_rgb = average_rgb(fg);
-    let bg_rgb = average_rgb(bg);
+    let mut fg_pixels = unicode_fg(unicode_char, img_dims);
+    let fg = img.pixels().filter(|x| fg_pixels(x)).collect::<Vec<_>>();
+    let bg = img.pixels().filter(|x| !fg_pixels(x)).collect::<Vec<_>>();
+    let fg_color = average_rgb(&fg);
+    let bg_color = average_rgb(&bg);
+    let fitness = pixels_fitness(&fg, fg_color) + pixels_fitness(&bg, bg_color);
     print!(
         "{}",
-        to_ansi(fg_rgb)
-            .on(to_ansi(bg_rgb))
+        to_ansi(fg_color)
+            .on(to_ansi(bg_color))
             .paint(unicode_char.to_string())
     )
 }
