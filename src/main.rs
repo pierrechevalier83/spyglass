@@ -5,7 +5,7 @@ extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
-use image::{GenericImage, Pixel, Rgba};
+use image::{GenericImage, Pixel, Rgb, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
@@ -60,25 +60,25 @@ impl Rectangle {
     }
 }
 
-fn to_ansi(rgb: image::Rgb<u8>) -> ansi_term::Color {
+fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> image::Rgb<u8>
+fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8>
 {
     let mut n = 0;
     let rgb =
         pxs.iter().map(|(_x, _y, p)| {
             n += 1;
             p.to_rgb()
-        }).fold(image::Rgb([0, 0, 0]), |acc, x| image::Rgb::<usize> {
+        }).fold(Rgb([0, 0, 0]), |acc, x| Rgb::<usize> {
                 data: [
                     acc[0] + x[0] as usize,
                     acc[1] + x[1] as usize,
                     acc[2] + x[2] as usize,
                 ],
             });
-    image::Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+    Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
 }
 
 fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<FnMut(&(u32, u32, Rgba<u8>)) -> bool> {
@@ -90,7 +90,7 @@ fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<FnMut(&(u32, u32, Rgba
 
 fn pixels_fitness(
     pixels: &[(u32, u32, Rgba<u8>)],
-    color: image::Rgb<u8>,
+    color: Rgb<u8>,
 ) -> i32
 {
     pixels
@@ -103,15 +103,23 @@ fn pixels_fitness(
         .sum()
 }
 
-fn print_image_as_char<'a, Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
-    let unicode_char = unicode::UPPER_HALF;
+fn approximate_image_with_char<Img>(img: &Img, unicode: char) -> (i32, Rgb<u8>, Rgb<u8>)
+where
+    Img: GenericImage<Pixel = Rgba<u8>>
+{
     let img_dims = Rectangle::from_tuple(img.dimensions());
-    let mut fg_pixels = unicode_fg(unicode_char, img_dims);
+    let mut fg_pixels = unicode_fg(unicode, img_dims);
     let fg = img.pixels().filter(|x| fg_pixels(x)).collect::<Vec<_>>();
     let bg = img.pixels().filter(|x| !fg_pixels(x)).collect::<Vec<_>>();
     let fg_color = average_rgb(&fg);
     let bg_color = average_rgb(&bg);
     let fitness = pixels_fitness(&fg, fg_color) + pixels_fitness(&bg, bg_color);
+    (fitness, fg_color, bg_color) 
+}
+
+fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
+    let unicode_char = unicode::UPPER_HALF;
+    let (fitness, fg_color, bg_color) = approximate_image_with_char(img, unicode_char);
     print!(
         "{}",
         to_ansi(fg_color)
