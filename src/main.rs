@@ -8,8 +8,8 @@ use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
 
 mod unicode {
-    pub const SQUARE: char = '█';
-    pub const UPPER_HALF: char = '▀';
+    pub const FULL_BLOCK: char = '█';
+    pub const UPPER_HALF_BLOCK: char = '▀';
 }
 
 #[derive(Debug)]
@@ -78,12 +78,16 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8>
                     acc[2] + x[2] as usize,
                 ],
             });
-    Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+    if n == 0 {
+        Rgb([0, 0, 0])
+    } else {
+        Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+    }
 }
 
 fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<FnMut(&(u32, u32, Rgba<u8>)) -> bool> {
     match unicode_char {
-        unicode::UPPER_HALF => Box::new(move |(_x, y, _p)| y < &(dims.height / 2)),
+        unicode::UPPER_HALF_BLOCK => Box::new(move |(_x, y, _p)| y < &(dims.height / 2)),
         _ => Box::new(move |_| true),
     }
 }
@@ -118,13 +122,23 @@ where
 }
 
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
-    let unicode_char = unicode::UPPER_HALF;
-    let (fitness, fg_color, bg_color) = approximate_image_with_char(img, unicode_char);
+    let mut unicode = unicode::FULL_BLOCK;
+    let (mut fitness, mut fg, mut bg) = approximate_image_with_char(img, unicode);
+    let unicode_chars = [unicode::UPPER_HALF_BLOCK];
+    for unicode_char in unicode_chars.iter() {
+        let (new_fitness, new_fg, new_bg) = approximate_image_with_char(img, *unicode_char);
+        if new_fitness < fitness {
+            fitness = new_fitness;
+            fg = new_fg;
+            bg = new_bg;
+            unicode = *unicode_char
+        }
+    }
     print!(
         "{}",
-        to_ansi(fg_color)
-            .on(to_ansi(bg_color))
-            .paint(unicode_char.to_string())
+        to_ansi(fg)
+            .on(to_ansi(bg))
+            .paint(unicode.to_string())
     )
 }
 
