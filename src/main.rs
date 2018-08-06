@@ -31,7 +31,7 @@ mod unicode {
     pub(crate) const QUADRANT_UPPER_LEFT: char = '▘';
     pub(crate) const QUADRANT_UPPER_RIGHT: char = '▝';
 
-    pub(crate) const ALL: [char; 22] = [
+    pub(crate) const ALL: &[char] = &[
         LOWER_ONE_EIGTH_BLOCK,
         LOWER_ONE_QUARTER_BLOCK,
         LOWER_THREE_EIGTHS_BLOCK,
