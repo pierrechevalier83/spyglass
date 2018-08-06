@@ -22,10 +22,6 @@ mod unicode {
     pub(crate) const LEFT_FIVE_EIGTHS_BLOCK: char = '▋';
     pub(crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
     pub(crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
-    pub(crate) const BLACK_LOWER_RIGHT_TRIANGLE: char = '◢';
-    pub(crate) const BLACK_LOWER_LEFT_TRIANGLE: char = '◣';
-    pub(crate) const BLACK_UPPER_RIGHT_TRIANGLE: char = '◥';
-    pub(crate) const BLACK_UPPER_LEFT_TRIANGLE: char = '◤';
     pub(crate) const QUADRANT_LOWER_LEFT: char = '▖';
     pub(crate) const QUADRANT_LOWER_RIGHT: char = '▗';
     pub(crate) const QUADRANT_UPPER_LEFT: char = '▘';
@@ -46,10 +42,6 @@ mod unicode {
         LEFT_FIVE_EIGTHS_BLOCK,
         LEFT_THREE_QUARTERS_BLOCK,
         LEFT_SEVEN_EIGTHS_BLOCK,
-        BLACK_LOWER_RIGHT_TRIANGLE,
-        BLACK_LOWER_LEFT_TRIANGLE,
-        BLACK_UPPER_RIGHT_TRIANGLE,
-        BLACK_UPPER_LEFT_TRIANGLE,
         QUADRANT_LOWER_LEFT,
         QUADRANT_LOWER_RIGHT,
         QUADRANT_UPPER_LEFT,
@@ -75,18 +67,6 @@ mod unicode {
             LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (5 * dims.height / 8)),
             LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| *x < (3 * dims.height / 4)),
             LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (7 * dims.height / 8)),
-            BLACK_LOWER_RIGHT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                *x as f32 / dims.height as f32 + 2. * (*y as f32) / dims.width as f32 > 1.0
-            }),
-            BLACK_LOWER_LEFT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                2. * (*x as f32) / dims.height as f32 - ((*y as f32) / dims.width as f32) > 1.0
-            }),
-            BLACK_UPPER_RIGHT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                2. * (*x as f32) / (dims.height as f32) - (*y as f32) / (dims.width as f32) > 0.0
-            }),
-            BLACK_UPPER_LEFT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                2. * (*x as f32) / (dims.height as f32) + (*y as f32) / (dims.width as f32) < 1.0
-            }),
             QUADRANT_LOWER_LEFT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y < dims.width / 2),
             QUADRANT_LOWER_RIGHT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y > dims.width / 2),
             QUADRANT_UPPER_LEFT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y < dims.width / 2),
