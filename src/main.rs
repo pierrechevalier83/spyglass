@@ -8,8 +8,57 @@ use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
 
 mod unicode {
-    pub const FULL_BLOCK: char = '█';
-    pub const UPPER_HALF_BLOCK: char = '▀';
+    pub (crate) const LOWER_ONE_EIGTH_BLOCK: char = '▁';
+    pub (crate) const LOWER_ONE_QUARTER_BLOCK: char = '▂';
+    pub (crate) const LOWER_THREE_EIGTHS_BLOCK: char = '▃';
+    pub (crate) const LOWER_HALF_BLOCK: char = '▄';
+    pub (crate) const LOWER_FIVE_EIGTHS_BLOCK: char = '▅';
+    pub (crate) const LOWER_THREE_QUARTERS_BLOCK: char = '▆';
+    pub (crate) const LOWER_SEVEN_EIGTHS_BLOCK: char = '▇';
+    pub (crate) const LEFT_ONE_EIGTH_BLOCK: char = '▏';
+    pub (crate) const LEFT_ONE_QUARTER_BLOCK: char = '▎';
+    pub (crate) const LEFT_THREE_EIGTHS_BLOCK: char = '▍';
+    pub (crate) const LEFT_HALF_BLOCK: char = '▌';
+    pub (crate) const LEFT_FIVE_EIGTHS_BLOCK: char = '▋';
+    pub (crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
+    pub (crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
+    pub (crate) const ALL: [char; 14] = [
+        LOWER_ONE_EIGTH_BLOCK,
+        LOWER_ONE_QUARTER_BLOCK,
+        LOWER_THREE_EIGTHS_BLOCK,
+        LOWER_HALF_BLOCK,
+        LOWER_FIVE_EIGTHS_BLOCK,
+        LOWER_THREE_QUARTERS_BLOCK,
+        LOWER_SEVEN_EIGTHS_BLOCK,
+        LEFT_ONE_EIGTH_BLOCK,
+        LEFT_ONE_QUARTER_BLOCK,
+        LEFT_THREE_EIGTHS_BLOCK,
+        LEFT_HALF_BLOCK,
+        LEFT_FIVE_EIGTHS_BLOCK,
+        LEFT_THREE_QUARTERS_BLOCK,
+        LEFT_SEVEN_EIGTHS_BLOCK
+    ];
+    pub (crate) const FULL_BLOCK: char = '█';
+    pub (crate) fn fg(unicode: char, dims: super::Rectangle) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
+        match unicode {
+            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| y > &(7 * dims.height / 8)),
+            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| y > &(3 * dims.height / 4)),
+            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(5 * dims.height / 8)),
+            LOWER_HALF_BLOCK => Box::new(move |(_x, y, _p)| y > &(dims.height / 2)),
+            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(3 * dims.height / 8)),
+            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| y > &(dims.height / 4)),
+            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(1 * dims.height / 8)),
+            LEFT_ONE_EIGTH_BLOCK => Box::new(move |(x, _y, _p)| x < &(7 * dims.width / 8)),
+            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| x < &(dims.width / 4)),
+            LEFT_THREE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(3 * dims.width / 8)),
+            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| x < &(dims.width / 2)),
+            LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(5 * dims.width / 8)),
+            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| x < &(3 * dims.width / 4)),
+            LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(7 * dims.width / 8)),
+            FULL_BLOCK => Box::new(move |_| true),
+            _ => Box::new(move |_| true),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -85,13 +134,6 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8>
     }
 }
 
-fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<FnMut(&(u32, u32, Rgba<u8>)) -> bool> {
-    match unicode_char {
-        unicode::UPPER_HALF_BLOCK => Box::new(move |(_x, y, _p)| y < &(dims.height / 2)),
-        _ => Box::new(move |_| true),
-    }
-}
-
 fn pixels_fitness(
     pixels: &[(u32, u32, Rgba<u8>)],
     color: Rgb<u8>,
@@ -112,7 +154,7 @@ where
     Img: GenericImage<Pixel = Rgba<u8>>
 {
     let img_dims = Rectangle::from_tuple(img.dimensions());
-    let mut fg_pixels = unicode_fg(unicode, img_dims);
+    let mut fg_pixels = unicode::fg(unicode, img_dims);
     let fg = img.pixels().filter(|x| fg_pixels(x)).collect::<Vec<_>>();
     let bg = img.pixels().filter(|x| !fg_pixels(x)).collect::<Vec<_>>();
     let fg_color = average_rgb(&fg);
@@ -124,8 +166,7 @@ where
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
     let mut unicode = unicode::FULL_BLOCK;
     let (mut fitness, mut fg, mut bg) = approximate_image_with_char(img, unicode);
-    let unicode_chars = [unicode::UPPER_HALF_BLOCK];
-    for unicode_char in unicode_chars.iter() {
+    for unicode_char in unicode::ALL.iter() {
         let (new_fitness, new_fg, new_bg) = approximate_image_with_char(img, *unicode_char);
         if new_fitness < fitness {
             fitness = new_fitness;
