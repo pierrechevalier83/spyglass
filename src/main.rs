@@ -24,8 +24,14 @@ mod unicode {
     pub(crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
     pub(crate) const BLACK_LOWER_RIGHT_TRIANGLE: char = '◢';
     pub(crate) const BLACK_LOWER_LEFT_TRIANGLE: char = '◣';
+    pub(crate) const BLACK_UPPER_RIGHT_TRIANGLE: char = '◥';
+    pub(crate) const BLACK_UPPER_LEFT_TRIANGLE: char = '◤';
+    pub(crate) const QUADRANT_LOWER_LEFT: char = '▖';
+    pub(crate) const QUADRANT_LOWER_RIGHT: char = '▗';
+    pub(crate) const QUADRANT_UPPER_LEFT: char = '▘';
+    pub(crate) const QUADRANT_UPPER_RIGHT: char = '▝';
 
-    pub(crate) const ALL: [char; 16] = [
+    pub(crate) const ALL: [char; 22] = [
         LOWER_ONE_EIGTH_BLOCK,
         LOWER_ONE_QUARTER_BLOCK,
         LOWER_THREE_EIGTHS_BLOCK,
@@ -42,6 +48,12 @@ mod unicode {
         LEFT_SEVEN_EIGTHS_BLOCK,
         BLACK_LOWER_RIGHT_TRIANGLE,
         BLACK_LOWER_LEFT_TRIANGLE,
+        BLACK_UPPER_RIGHT_TRIANGLE,
+        BLACK_UPPER_LEFT_TRIANGLE,
+        QUADRANT_LOWER_LEFT,
+        QUADRANT_LOWER_RIGHT,
+        QUADRANT_UPPER_LEFT,
+        QUADRANT_UPPER_RIGHT
     ];
     pub(crate) const FULL_BLOCK: char = '█';
     pub(crate) fn fg(
@@ -49,26 +61,36 @@ mod unicode {
         dims: super::Rectangle,
     ) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
         match unicode {
-            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| y > &(7 * dims.height / 8)),
-            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| y > &(3 * dims.height / 4)),
-            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(5 * dims.height / 8)),
-            LOWER_HALF_BLOCK => Box::new(move |(_x, y, _p)| y > &(dims.height / 2)),
-            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(3 * dims.height / 8)),
-            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| y > &(dims.height / 4)),
-            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| y > &(1 * dims.height / 8)),
-            LEFT_ONE_EIGTH_BLOCK => Box::new(move |(x, _y, _p)| x < &(7 * dims.width / 8)),
-            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| x < &(dims.width / 4)),
-            LEFT_THREE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(3 * dims.width / 8)),
-            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| x < &(dims.width / 2)),
-            LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(5 * dims.width / 8)),
-            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| x < &(3 * dims.width / 4)),
-            LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(7 * dims.width / 8)),
+            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| *y > (7 * dims.width / 8)),
+            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| *y > (3 * dims.width / 4)),
+            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (5 * dims.width / 8)),
+            LOWER_HALF_BLOCK => Box::new(move |(_x, y, _p)| *y > (dims.width / 2)),
+            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (3 * dims.width / 8)),
+            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| *y > (dims.width / 4)),
+            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (1 * dims.width / 8)),
+            LEFT_ONE_EIGTH_BLOCK => Box::new(move |(x, _y, _p)| *x < (7 * dims.height / 8)),
+            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| *x < (dims.height / 4)),
+            LEFT_THREE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (3 * dims.height / 8)),
+            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| *x < (dims.height / 2)),
+            LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (5 * dims.height / 8)),
+            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| *x < (3 * dims.height / 4)),
+            LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (7 * dims.height / 8)),
             BLACK_LOWER_RIGHT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                *y as f32 / dims.width as f32 + *x as f32 / dims.height as f32 > 1.0
+                *x as f32 / dims.height as f32 + 2. * (*y as f32) / dims.width as f32 > 1.0
             }),
             BLACK_LOWER_LEFT_TRIANGLE => Box::new(move |(x, y, _p)| {
-                *y as f32 / dims.width as f32 - *x as f32 / dims.height as f32 > 1.0
+                2. * (*x as f32) / dims.height as f32 - ((*y as f32) / dims.width as f32) > 1.0
             }),
+            BLACK_UPPER_RIGHT_TRIANGLE => Box::new(move |(x, y, _p)| {
+                2. * (*x as f32) / (dims.height as f32) - (*y as f32) / (dims.width as f32) > 0.0
+            }),
+            BLACK_UPPER_LEFT_TRIANGLE => Box::new(move |(x, y, _p)| {
+                2. * (*x as f32) / (dims.height as f32) + (*y as f32) / (dims.width as f32) < 1.0
+            }),
+            QUADRANT_LOWER_LEFT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y < dims.width / 2),
+            QUADRANT_LOWER_RIGHT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y > dims.width / 2),
+            QUADRANT_UPPER_LEFT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y < dims.width / 2),
+            QUADRANT_UPPER_RIGHT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y > dims.width / 2),
             FULL_BLOCK => Box::new(move |_| true),
             _ => Box::new(move |_| true),
         }
