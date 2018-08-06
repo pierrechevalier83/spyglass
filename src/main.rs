@@ -5,7 +5,7 @@ extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
-use image::{GenericImage, Pixel, Rgba};
+use image::{GenericImage, Pixel, Pixels, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
@@ -64,21 +64,28 @@ fn to_ansi(rgb: image::Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-//fn average_rgb<Pxs: Pixels<u8>>(pxs: Pxs) -> image::Rgb<u8> {
-//}
-
-fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
-    let unicode_char = unicode::UPPER_HALF;
-    // let fg_rgb = img.get_pixel(0, 0).to_rgb();
-    let fg =
-        img.pixels().filter(|(_x, y, _p)| *y < img.height() / 2);
-    let n_fg = img.pixels().count() / 2;
-    let fg_rgb = fg
-        .map(|(_x, _y, p)| p.to_rgb())
+fn average_rgb<'a, I>(pxs: I) -> image::Rgb<u8>
+where
+    I: Iterator<Item = (u32, u32, Rgba<u8>)>,
+{
+    let mut n = 0;
+    let rgb = pxs
+        .map(|(_x, _y, p)| 
+             {
+                 n += 1;
+                p.to_rgb()
+             })
         .fold(image::Rgb([0, 0, 0]), |acc, x| image::Rgb::<usize> {
             data: [acc[0] + x[0] as usize, acc[1] + x[1] as usize, acc[2] + x[2] as usize],
         });
-    let fg_rgb = image::Rgb([(fg_rgb[0] / n_fg) as u8, (fg_rgb[1] / n_fg) as u8, (fg_rgb[2] / n_fg) as u8]);
+    image::Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+}
+
+fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
+    let unicode_char = unicode::UPPER_HALF;
+    let mut fg =
+        img.pixels().filter(|(_x, y, _p)| *y < img.height() / 2);
+    let fg_rgb = average_rgb(fg);
     let bg_rgb = img.get_pixel(img.width() - 1, img.height() - 1).to_rgb();
     print!(
         "{}",
