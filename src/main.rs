@@ -5,7 +5,7 @@ extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
-use image::{GenericImage, Pixel, Pixels, Rgba};
+use image::{GenericImage, Pixel, Rgba};
 
 mod unicode {
     pub const SQUARE: char = '█';
@@ -69,24 +69,36 @@ where
     I: Iterator<Item = (u32, u32, Rgba<u8>)>,
 {
     let mut n = 0;
-    let rgb = pxs
-        .map(|(_x, _y, p)| 
-             {
-                 n += 1;
-                p.to_rgb()
-             })
-        .fold(image::Rgb([0, 0, 0]), |acc, x| image::Rgb::<usize> {
-            data: [acc[0] + x[0] as usize, acc[1] + x[1] as usize, acc[2] + x[2] as usize],
-        });
+    let rgb =
+        pxs.map(|(_x, _y, p)| {
+            n += 1;
+            p.to_rgb()
+        }).fold(image::Rgb([0, 0, 0]), |acc, x| image::Rgb::<usize> {
+                data: [
+                    acc[0] + x[0] as usize,
+                    acc[1] + x[1] as usize,
+                    acc[2] + x[2] as usize,
+                ],
+            });
     image::Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+}
+
+fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<Fn(&(u32, u32, Rgba<u8>)) -> bool> {
+    match unicode_char {
+        unicode::UPPER_HALF => Box::new(move |(_x, y, _p)| y < &(dims.height / 2)),
+        _ => Box::new(move |_| true),
+    }
 }
 
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
     let unicode_char = unicode::UPPER_HALF;
-    let mut fg =
-        img.pixels().filter(|(_x, y, _p)| *y < img.height() / 2);
+    let img_dims = Rectangle::from_tuple(img.dimensions());
+    let fg_pixels = unicode_fg(unicode_char, img_dims);
+    let fg = img.pixels().filter(|x| fg_pixels(x));
+    let bg = img.pixels().filter(|x| !fg_pixels(x));
+
     let fg_rgb = average_rgb(fg);
-    let bg_rgb = img.get_pixel(img.width() - 1, img.height() - 1).to_rgb();
+    let bg_rgb = average_rgb(bg);
     print!(
         "{}",
         to_ansi(fg_rgb)
