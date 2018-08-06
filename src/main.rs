@@ -90,13 +90,40 @@ fn unicode_fg(unicode_char: char, dims: Rectangle) -> Box<Fn(&(u32, u32, Rgba<u8
     }
 }
 
+fn pixels_fitness<Iter>(
+    pixels: Iter,
+    color: image::Rgb<u8>,
+) -> i32
+where
+    Iter: Iterator<Item = (u32, u32, Rgba<u8>)>,
+{
+    pixels
+        .map(|(_, _, px_color)| {
+            (px_color[0] as i32 - color[0] as i32).abs()
+                + (px_color[1] as i32 - color[1] as i32).abs()
+                + (px_color[2] as i32 - color[2] as i32).abs()
+        })
+        .sum()
+}
+
+fn unicode_fitness<Iter>(
+    fg_pixels: Iter,
+    bg_pixels: Iter,
+    fg_color: image::Rgb<u8>,
+    bg_color: image::Rgb<u8>,
+) -> i32
+where
+    Iter: Iterator<Item = (u32, u32, Rgba<u8>)>,
+{
+    pixels_fitness(fg_pixels, fg_color) + pixels_fitness(bg_pixels, bg_color)
+}
+
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
     let unicode_char = unicode::UPPER_HALF;
     let img_dims = Rectangle::from_tuple(img.dimensions());
     let fg_pixels = unicode_fg(unicode_char, img_dims);
     let fg = img.pixels().filter(|x| fg_pixels(x));
     let bg = img.pixels().filter(|x| !fg_pixels(x));
-
     let fg_rgb = average_rgb(fg);
     let bg_rgb = average_rgb(bg);
     print!(
