@@ -8,21 +8,24 @@ use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
 
 mod unicode {
-    pub (crate) const LOWER_ONE_EIGTH_BLOCK: char = '▁';
-    pub (crate) const LOWER_ONE_QUARTER_BLOCK: char = '▂';
-    pub (crate) const LOWER_THREE_EIGTHS_BLOCK: char = '▃';
-    pub (crate) const LOWER_HALF_BLOCK: char = '▄';
-    pub (crate) const LOWER_FIVE_EIGTHS_BLOCK: char = '▅';
-    pub (crate) const LOWER_THREE_QUARTERS_BLOCK: char = '▆';
-    pub (crate) const LOWER_SEVEN_EIGTHS_BLOCK: char = '▇';
-    pub (crate) const LEFT_ONE_EIGTH_BLOCK: char = '▏';
-    pub (crate) const LEFT_ONE_QUARTER_BLOCK: char = '▎';
-    pub (crate) const LEFT_THREE_EIGTHS_BLOCK: char = '▍';
-    pub (crate) const LEFT_HALF_BLOCK: char = '▌';
-    pub (crate) const LEFT_FIVE_EIGTHS_BLOCK: char = '▋';
-    pub (crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
-    pub (crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
-    pub (crate) const ALL: [char; 14] = [
+    pub(crate) const LOWER_ONE_EIGTH_BLOCK: char = '▁';
+    pub(crate) const LOWER_ONE_QUARTER_BLOCK: char = '▂';
+    pub(crate) const LOWER_THREE_EIGTHS_BLOCK: char = '▃';
+    pub(crate) const LOWER_HALF_BLOCK: char = '▄';
+    pub(crate) const LOWER_FIVE_EIGTHS_BLOCK: char = '▅';
+    pub(crate) const LOWER_THREE_QUARTERS_BLOCK: char = '▆';
+    pub(crate) const LOWER_SEVEN_EIGTHS_BLOCK: char = '▇';
+    pub(crate) const LEFT_ONE_EIGTH_BLOCK: char = '▏';
+    pub(crate) const LEFT_ONE_QUARTER_BLOCK: char = '▎';
+    pub(crate) const LEFT_THREE_EIGTHS_BLOCK: char = '▍';
+    pub(crate) const LEFT_HALF_BLOCK: char = '▌';
+    pub(crate) const LEFT_FIVE_EIGTHS_BLOCK: char = '▋';
+    pub(crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
+    pub(crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
+    pub(crate) const BLACK_LOWER_RIGHT_TRIANGLE: char = '◢';
+    pub(crate) const BLACK_LOWER_LEFT_TRIANGLE: char = '◣';
+
+    pub(crate) const ALL: [char; 16] = [
         LOWER_ONE_EIGTH_BLOCK,
         LOWER_ONE_QUARTER_BLOCK,
         LOWER_THREE_EIGTHS_BLOCK,
@@ -36,10 +39,15 @@ mod unicode {
         LEFT_HALF_BLOCK,
         LEFT_FIVE_EIGTHS_BLOCK,
         LEFT_THREE_QUARTERS_BLOCK,
-        LEFT_SEVEN_EIGTHS_BLOCK
+        LEFT_SEVEN_EIGTHS_BLOCK,
+        BLACK_LOWER_RIGHT_TRIANGLE,
+        BLACK_LOWER_LEFT_TRIANGLE,
     ];
-    pub (crate) const FULL_BLOCK: char = '█';
-    pub (crate) fn fg(unicode: char, dims: super::Rectangle) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
+    pub(crate) const FULL_BLOCK: char = '█';
+    pub(crate) fn fg(
+        unicode: char,
+        dims: super::Rectangle,
+    ) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
         match unicode {
             LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| y > &(7 * dims.height / 8)),
             LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| y > &(3 * dims.height / 4)),
@@ -55,6 +63,12 @@ mod unicode {
             LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(5 * dims.width / 8)),
             LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| x < &(3 * dims.width / 4)),
             LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| x < &(7 * dims.width / 8)),
+            BLACK_LOWER_RIGHT_TRIANGLE => Box::new(move |(x, y, _p)| {
+                *y as f32 / dims.width as f32 + *x as f32 / dims.height as f32 > 1.0
+            }),
+            BLACK_LOWER_LEFT_TRIANGLE => Box::new(move |(x, y, _p)| {
+                *y as f32 / dims.width as f32 - *x as f32 / dims.height as f32 > 1.0
+            }),
             FULL_BLOCK => Box::new(move |_| true),
             _ => Box::new(move |_| true),
         }
@@ -113,20 +127,21 @@ fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8>
-{
+fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     let mut n = 0;
-    let rgb =
-        pxs.iter().map(|(_x, _y, p)| {
+    let rgb = pxs
+        .iter()
+        .map(|(_x, _y, p)| {
             n += 1;
             p.to_rgb()
-        }).fold(Rgb([0, 0, 0]), |acc, x| Rgb::<usize> {
-                data: [
-                    acc[0] + x[0] as usize,
-                    acc[1] + x[1] as usize,
-                    acc[2] + x[2] as usize,
-                ],
-            });
+        })
+        .fold(Rgb([0, 0, 0]), |acc, x| Rgb::<usize> {
+            data: [
+                acc[0] + x[0] as usize,
+                acc[1] + x[1] as usize,
+                acc[2] + x[2] as usize,
+            ],
+        });
     if n == 0 {
         Rgb([0, 0, 0])
     } else {
@@ -134,11 +149,7 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8>
     }
 }
 
-fn pixels_fitness(
-    pixels: &[(u32, u32, Rgba<u8>)],
-    color: Rgb<u8>,
-) -> i32
-{
+fn pixels_fitness(pixels: &[(u32, u32, Rgba<u8>)], color: Rgb<u8>) -> i32 {
     pixels
         .iter()
         .map(|(_, _, px_color)| {
@@ -151,7 +162,7 @@ fn pixels_fitness(
 
 fn approximate_image_with_char<Img>(img: &Img, unicode: char) -> (i32, Rgb<u8>, Rgb<u8>)
 where
-    Img: GenericImage<Pixel = Rgba<u8>>
+    Img: GenericImage<Pixel = Rgba<u8>>,
 {
     let img_dims = Rectangle::from_tuple(img.dimensions());
     let mut fg_pixels = unicode::fg(unicode, img_dims);
@@ -160,7 +171,7 @@ where
     let fg_color = average_rgb(&fg);
     let bg_color = average_rgb(&bg);
     let fitness = pixels_fitness(&fg, fg_color) + pixels_fitness(&bg, bg_color);
-    (fitness, fg_color, bg_color) 
+    (fitness, fg_color, bg_color)
 }
 
 fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
@@ -175,12 +186,7 @@ fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
             unicode = *unicode_char
         }
     }
-    print!(
-        "{}",
-        to_ansi(fg)
-            .on(to_ansi(bg))
-            .paint(unicode.to_string())
-    )
+    print!("{}", to_ansi(fg).on(to_ansi(bg)).paint(unicode.to_string()))
 }
 
 fn main() {
