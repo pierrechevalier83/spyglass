@@ -98,31 +98,6 @@ impl Rectangle {
             height: (dims.rows - 1) as u32,
         }
     }
-    fn ratio(&self) -> f32 {
-        self.width as f32 / self.height as f32
-    }
-    fn frame(image: &Self, screen: &Self) -> Rectangle {
-        // Return a frame that would fit the image
-        // height / width ration of a character
-        let char_ratio = 2.1;
-        if char_ratio * image.ratio() > screen.ratio() {
-            Rectangle {
-                width: screen.width,
-                height: (screen.width as f32 / (char_ratio * image.ratio())) as u32,
-            }
-        } else {
-            Rectangle {
-                width: (screen.height as f32 * (char_ratio * image.ratio())) as u32,
-                height: screen.height,
-            }
-        }
-    }
-    fn split(image: &Self, screen: &Self) -> Rectangle {
-        Rectangle {
-            width: image.width / screen.width,
-            height: image.height / screen.height,
-        }
-    }
 }
 
 fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
@@ -205,13 +180,14 @@ fn main() {
         .get_matches();
     let img_path = matches.value_of("INPUT").unwrap();
     let mut img = image::open(img_path).unwrap();
-    let img_dims = Rectangle::from_tuple(img.dimensions());
-    let mut screen_dims = Rectangle::from_termsize();
-    screen_dims = Rectangle::frame(&img_dims, &screen_dims);
-    let char_dims = Rectangle::split(&img_dims, &screen_dims);
 
-    for col in 0..screen_dims.height {
-        for row in 0..screen_dims.width {
+    let char_dims = Rectangle::from_tuple((8, 16));
+    let screen_dims = Rectangle::from_termsize();
+    // Resize the image so it fits within the screen (preserves ratio)
+    img = img.resize(screen_dims.width * char_dims.width, screen_dims.height * char_dims.height, image::FilterType::Nearest);
+
+    for col in 0..img.height() / char_dims.height {
+        for row in 0..img.width() / char_dims.width {
             let sub =
                 img.sub_image(
                     row * char_dims.width,
