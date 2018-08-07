@@ -140,7 +140,14 @@ where
     (fitness, fg_color, bg_color)
 }
 
-fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static>{
+fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static> {
+    // This is no good because I do a lot of work for each character.
+    // Instead, I should
+    // - sort the pixels by color once,
+    // - pick the median and consider the 2 bitmaps:
+    // - first fg then bg and first bg then fg
+    // For each char, I just have to find the bitmap that best fits any of these 2
+    // I can then pick the right color with my current approximate_image_with_char function
     let mut unicode = unicode::FULL_BLOCK;
     let (mut fitness, mut fg, mut bg) = approximate_image_with_char(img, unicode);
     for unicode_char in unicode::ALL.iter() {
