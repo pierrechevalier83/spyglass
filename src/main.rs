@@ -3,6 +3,7 @@ extern crate clap;
 extern crate image;
 extern crate termsize;
 
+use ansi_term::{ANSIString, ANSIStrings};
 use ansi_term::Colour::RGB;
 use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
@@ -151,7 +152,7 @@ where
     (fitness, fg_color, bg_color)
 }
 
-fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
+fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static>{
     let mut unicode = unicode::FULL_BLOCK;
     let (mut fitness, mut fg, mut bg) = approximate_image_with_char(img, unicode);
     for unicode_char in unicode::ALL.iter() {
@@ -163,7 +164,7 @@ fn print_image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) {
             unicode = *unicode_char
         }
     }
-    print!("{}", to_ansi(fg).on(to_ansi(bg)).paint(unicode.to_string()))
+    to_ansi(fg).on(to_ansi(bg)).paint(unicode.to_string())
 }
 
 fn main() {
@@ -186,6 +187,7 @@ fn main() {
     // Resize the image so it fits within the screen (preserves ratio)
     img = img.resize(screen_dims.width * char_dims.width, screen_dims.height * char_dims.height, image::FilterType::Nearest);
 
+    let mut strings: Vec<ANSIString<'static>> = vec![];
     for col in 0..img.height() / char_dims.height {
         for row in 0..img.width() / char_dims.width {
             let sub =
@@ -195,8 +197,9 @@ fn main() {
                     char_dims.width,
                     char_dims.height,
                 ).to_image();
-            print_image_as_char(&sub);
+            strings.push(image_as_char(&sub));
         }
-        println!("");
+        strings.push(ansi_term::Style::new().paint("\n"));
     }
+    println!("{}", &ANSIStrings(&strings));
 }
