@@ -16,13 +16,9 @@ mod unicode {
     pub(crate) const LOWER_FIVE_EIGTHS_BLOCK: char = '▅';
     pub(crate) const LOWER_THREE_QUARTERS_BLOCK: char = '▆';
     pub(crate) const LOWER_SEVEN_EIGTHS_BLOCK: char = '▇';
-    pub(crate) const LEFT_ONE_EIGTH_BLOCK: char = '▏';
     pub(crate) const LEFT_ONE_QUARTER_BLOCK: char = '▎';
-    pub(crate) const LEFT_THREE_EIGTHS_BLOCK: char = '▍';
     pub(crate) const LEFT_HALF_BLOCK: char = '▌';
-    pub(crate) const LEFT_FIVE_EIGTHS_BLOCK: char = '▋';
     pub(crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
-    pub(crate) const LEFT_SEVEN_EIGTHS_BLOCK: char = '▉';
     pub(crate) const QUADRANT_LOWER_LEFT: char = '▖';
     pub(crate) const QUADRANT_LOWER_RIGHT: char = '▗';
     pub(crate) const QUADRANT_UPPER_LEFT: char = '▘';
@@ -36,13 +32,9 @@ mod unicode {
         LOWER_FIVE_EIGTHS_BLOCK,
         LOWER_THREE_QUARTERS_BLOCK,
         LOWER_SEVEN_EIGTHS_BLOCK,
-        LEFT_ONE_EIGTH_BLOCK,
         LEFT_ONE_QUARTER_BLOCK,
-        LEFT_THREE_EIGTHS_BLOCK,
         LEFT_HALF_BLOCK,
-        LEFT_FIVE_EIGTHS_BLOCK,
         LEFT_THREE_QUARTERS_BLOCK,
-        LEFT_SEVEN_EIGTHS_BLOCK,
         QUADRANT_LOWER_LEFT,
         QUADRANT_LOWER_RIGHT,
         QUADRANT_UPPER_LEFT,
@@ -54,20 +46,16 @@ mod unicode {
         dims: super::Rectangle,
     ) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
         match unicode {
-            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| *y > (7 * dims.width / 8)),
-            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| *y > (3 * dims.width / 4)),
-            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (5 * dims.width / 8)),
+            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| *y > 7 * dims.width / 8),
+            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| *y > 3 * dims.width / 4),
+            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > 5 * dims.width / 8),
             LOWER_HALF_BLOCK => Box::new(move |(_x, y, _p)| *y > (dims.width / 2)),
-            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (3 * dims.width / 8)),
-            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| *y > (dims.width / 4)),
-            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > (1 * dims.width / 8)),
-            LEFT_ONE_EIGTH_BLOCK => Box::new(move |(x, _y, _p)| *x < (7 * dims.height / 8)),
-            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| *x < (dims.height / 4)),
-            LEFT_THREE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (3 * dims.height / 8)),
-            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| *x < (dims.height / 2)),
-            LEFT_FIVE_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (5 * dims.height / 8)),
-            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| *x < (3 * dims.height / 4)),
-            LEFT_SEVEN_EIGTHS_BLOCK => Box::new(move |(x, _y, _p)| *x < (7 * dims.height / 8)),
+            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > 3 * dims.width / 8),
+            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| *y > dims.width / 4),
+            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > dims.width / 8),
+            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| *x < dims.height / 4),
+            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| *x < dims.height / 2),
+            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| *x < 3 * dims.height / 4),
             QUADRANT_LOWER_LEFT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y < dims.width / 2),
             QUADRANT_LOWER_RIGHT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y > dims.width / 2),
             QUADRANT_UPPER_LEFT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y < dims.width / 2),
@@ -182,7 +170,7 @@ fn main() {
     let img_path = matches.value_of("INPUT").unwrap();
     let mut img = image::open(img_path).unwrap();
 
-    let char_dims = Rectangle::from_tuple((8, 16));
+    let char_dims = Rectangle::from_tuple((4, 8));
     let screen_dims = Rectangle::from_termsize();
     // Resize the image so it fits within the screen (preserves ratio)
     img = img.resize(screen_dims.width * char_dims.width, screen_dims.height * char_dims.height, image::FilterType::Nearest);
