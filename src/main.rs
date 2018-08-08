@@ -86,13 +86,23 @@ impl Unicode {
     }
 }
 
+#[test] fn test_get_bit_at_index() {
+    let lower_half = Unicode::LowerHalfBlock.bitmap();
+    assert_eq!(false, get_bit_at_index(lower_half, 0));
+    assert_eq!(false, get_bit_at_index(lower_half, 1));
+    assert_eq!(false, get_bit_at_index(lower_half, 15));
+    assert_eq!(true, get_bit_at_index(lower_half, 16));
+    assert_eq!(true, get_bit_at_index(lower_half, 31));
+}
+
 fn get_bit_at_index(bitmap: u32, index: u32) -> bool {
-    let bit = bitmap >> index;
-    bit % 2 == 1
+    // Reading bits from left to right,
+    // so index 0 == most significant digit
+    (bitmap & (1 << (31 - index))) != 0
 }
 
 fn set_bit_at_index(bitmap: &mut u32, index: u32) {
-    let bit = 1 << index;
+    let bit = 1 << (31 - index);
     *bitmap |= bit;
 }
 
@@ -152,6 +162,17 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     }
 }
 
+#[test] fn test_approximate_image_with_char() {
+    let half_box = Unicode::LowerHalfBlock;
+    let mut img = image::ImageBuffer::new(4, 8);
+    for i in 0..4 {
+        for j in 4..8 {
+            img.put_pixel(i, j, Rgba([1, 1, 1, 1]))
+        }
+    }
+    assert_eq!((Rgb([1, 1, 1]), Rgb([0, 0, 0])), approximate_image_with_char(&img, &half_box));
+}
+
 fn approximate_image_with_char<Img>(img: &Img, unicode: &Unicode) -> (Rgb<u8>, Rgb<u8>)
 where
     Img: GenericImage<Pixel = Rgba<u8>>,
@@ -159,11 +180,11 @@ where
     let fg_pixels = unicode.bitmap();
     let fg = img
         .pixels()
-        .filter(|(x, y, _)| get_bit_at_index(fg_pixels, x * img.height() + y))
+        .filter(|(x, y, _)| get_bit_at_index(fg_pixels, x + y * img.width()))
         .collect::<Vec<_>>();
     let bg = img
         .pixels()
-        .filter(|(x, y, _)| !get_bit_at_index(fg_pixels, x * img.height() + y))
+        .filter(|(x, y, _)| !get_bit_at_index(fg_pixels, x + y * img.width()))
         .collect::<Vec<_>>();
     let fg_color = average_rgb(&fg);
     let bg_color = average_rgb(&bg);
