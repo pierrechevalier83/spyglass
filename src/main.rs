@@ -3,67 +3,104 @@ extern crate clap;
 extern crate image;
 extern crate termsize;
 
-use ansi_term::{ANSIString, ANSIStrings};
 use ansi_term::Colour::RGB;
+use ansi_term::{ANSIString, ANSIStrings};
 use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
 
-mod unicode {
-    pub(crate) const LOWER_ONE_EIGTH_BLOCK: char = '▁';
-    pub(crate) const LOWER_ONE_QUARTER_BLOCK: char = '▂';
-    pub(crate) const LOWER_THREE_EIGTHS_BLOCK: char = '▃';
-    pub(crate) const LOWER_HALF_BLOCK: char = '▄';
-    pub(crate) const LOWER_FIVE_EIGTHS_BLOCK: char = '▅';
-    pub(crate) const LOWER_THREE_QUARTERS_BLOCK: char = '▆';
-    pub(crate) const LOWER_SEVEN_EIGTHS_BLOCK: char = '▇';
-    pub(crate) const LEFT_ONE_QUARTER_BLOCK: char = '▎';
-    pub(crate) const LEFT_HALF_BLOCK: char = '▌';
-    pub(crate) const LEFT_THREE_QUARTERS_BLOCK: char = '▊';
-    pub(crate) const QUADRANT_LOWER_LEFT: char = '▖';
-    pub(crate) const QUADRANT_LOWER_RIGHT: char = '▗';
-    pub(crate) const QUADRANT_UPPER_LEFT: char = '▘';
-    pub(crate) const QUADRANT_UPPER_RIGHT: char = '▝';
+enum Unicode {
+    Space,
+    LowerOneEigthBlock,
+    LowerOneQuarterBlock,
+    LowerThreeEigthsBlock,
+    LowerHalfBlock,
+    LowerFiveEigthsBlock,
+    LowerThreeQuartersBlock,
+    LowerSevenEigthsBlock,
+    LeftOneQuarterBlock,
+    LeftHalfBlock,
+    LeftThreeQuartersBlock,
+    QuadrantLowerLeft,
+    QuadrantLowerRight,
+    QuadrantUpperLeft,
+    QuadrantUpperRight,
+}
 
-    pub(crate) const ALL: &[char] = &[
-        LOWER_ONE_EIGTH_BLOCK,
-        LOWER_ONE_QUARTER_BLOCK,
-        LOWER_THREE_EIGTHS_BLOCK,
-        LOWER_HALF_BLOCK,
-        LOWER_FIVE_EIGTHS_BLOCK,
-        LOWER_THREE_QUARTERS_BLOCK,
-        LOWER_SEVEN_EIGTHS_BLOCK,
-        LEFT_ONE_QUARTER_BLOCK,
-        LEFT_HALF_BLOCK,
-        LEFT_THREE_QUARTERS_BLOCK,
-        QUADRANT_LOWER_LEFT,
-        QUADRANT_LOWER_RIGHT,
-        QUADRANT_UPPER_LEFT,
-        QUADRANT_UPPER_RIGHT
-    ];
-    pub(crate) const FULL_BLOCK: char = '█';
-    pub(crate) fn fg(
-        unicode: char,
-        dims: super::Rectangle,
-    ) -> Box<FnMut(&(u32, u32, super::Rgba<u8>)) -> bool> {
-        match unicode {
-            LOWER_ONE_EIGTH_BLOCK => Box::new(move |(_x, y, _p)| *y > 7 * dims.width / 8),
-            LOWER_ONE_QUARTER_BLOCK => Box::new(move |(_x, y, _p)| *y > 3 * dims.width / 4),
-            LOWER_THREE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > 5 * dims.width / 8),
-            LOWER_HALF_BLOCK => Box::new(move |(_x, y, _p)| *y > (dims.width / 2)),
-            LOWER_FIVE_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > 3 * dims.width / 8),
-            LOWER_THREE_QUARTERS_BLOCK => Box::new(move |(_x, y, _p)| *y > dims.width / 4),
-            LOWER_SEVEN_EIGTHS_BLOCK => Box::new(move |(_x, y, _p)| *y > dims.width / 8),
-            LEFT_ONE_QUARTER_BLOCK => Box::new(move |(x, _y, _p)| *x < dims.height / 4),
-            LEFT_HALF_BLOCK => Box::new(move |(x, _y, _p)| *x < dims.height / 2),
-            LEFT_THREE_QUARTERS_BLOCK => Box::new(move |(x, _y, _p)| *x < 3 * dims.height / 4),
-            QUADRANT_LOWER_LEFT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y < dims.width / 2),
-            QUADRANT_LOWER_RIGHT => Box::new(move |(x, y, _p)| *x > dims.height/ 2 && *y > dims.width / 2),
-            QUADRANT_UPPER_LEFT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y < dims.width / 2),
-            QUADRANT_UPPER_RIGHT => Box::new(move |(x, y, _p)| *x < dims.height/ 2 && *y > dims.width / 2),
-            FULL_BLOCK => Box::new(move |_| true),
-            _ => Box::new(move |_| true),
+impl Unicode {
+    fn all() -> Vec<Unicode> {
+        vec![
+            Unicode::Space,
+            Unicode::LowerOneEigthBlock,
+            Unicode::LowerOneQuarterBlock,
+            Unicode::LowerThreeEigthsBlock,
+            Unicode::LowerHalfBlock,
+            Unicode::LowerFiveEigthsBlock,
+            Unicode::LowerThreeQuartersBlock,
+            Unicode::LowerSevenEigthsBlock,
+            Unicode::LeftOneQuarterBlock,
+            Unicode::LeftHalfBlock,
+            Unicode::LeftThreeQuartersBlock,
+            Unicode::QuadrantLowerLeft,
+            Unicode::QuadrantLowerRight,
+            Unicode::QuadrantUpperLeft,
+            Unicode::QuadrantUpperRight,
+        ]
+    }
+    fn character(&self) -> char {
+        match self {
+            Unicode::Space => ' ',
+            Unicode::LowerOneEigthBlock => '▁',
+            Unicode::LowerOneQuarterBlock => '▂',
+            Unicode::LowerThreeEigthsBlock => '▃',
+            Unicode::LowerHalfBlock => '▄',
+            Unicode::LowerFiveEigthsBlock => '▅',
+            Unicode::LowerThreeQuartersBlock => '▆',
+            Unicode::LowerSevenEigthsBlock => '▇',
+            Unicode::LeftOneQuarterBlock => '▎',
+            Unicode::LeftHalfBlock => '▌',
+            Unicode::LeftThreeQuartersBlock => '▊',
+            Unicode::QuadrantLowerLeft => '▖',
+            Unicode::QuadrantLowerRight => '▗',
+            Unicode::QuadrantUpperLeft => '▘',
+            Unicode::QuadrantUpperRight => '▝',
         }
     }
+    fn bitmap(&self) -> u32 {
+        match self {
+            Unicode::Space => 0x00000000,
+            Unicode::LowerOneEigthBlock => 0x0000000f,
+            Unicode::LowerOneQuarterBlock => 0x000000ff,
+            Unicode::LowerThreeEigthsBlock => 0x00000fff,
+            Unicode::LowerHalfBlock => 0x0000ffff,
+            Unicode::LowerFiveEigthsBlock => 0x000fffff,
+            Unicode::LowerThreeQuartersBlock => 0x00ffffff,
+            Unicode::LowerSevenEigthsBlock => 0x07ffffff,
+            Unicode::LeftOneQuarterBlock => 0x88888888,
+            Unicode::LeftHalfBlock => 0xcccccccc,
+            Unicode::LeftThreeQuartersBlock => 0xeeeeeeee,
+            Unicode::QuadrantLowerLeft => 0x0000cccc,
+            Unicode::QuadrantLowerRight => 0x00003333,
+            Unicode::QuadrantUpperLeft => 0xcccc0000,
+            Unicode::QuadrantUpperRight => 0x33330000,
+        }
+    }
+}
+
+fn get_bit_at_index(bitmap: u32, index: u32) -> bool {
+    let bit = bitmap >> index;
+    bit % 2 == 1
+}
+
+fn set_bit_at_index(bitmap: &mut u32, index: u32) {
+    let bit = 1 << index;
+    *bitmap |= bit;
+}
+
+// The number of bits set
+fn hamming_weight(val: u32) -> u32 {
+    let v1 = val - ((val >> 1) & 0x55555555);
+    let v2 = (v1 & 0x33333333) + ((v1 >> 2) & 0x33333333);
+    (((v2 + (v2 >> 4)) & 0xF0F0F0F).wrapping_mul(0x1010101)) >> 24
 }
 
 #[derive(Debug)]
@@ -93,6 +130,10 @@ fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
+fn norm(rgb: &Rgb<u8>) -> u8 {
+    rgb[0] + rgb[1] + rgb[2]
+}
+
 fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     let mut n = 0;
     let rgb = pxs
@@ -115,51 +156,55 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     }
 }
 
-fn pixels_fitness(pixels: &[(u32, u32, Rgba<u8>)], color: Rgb<u8>) -> i32 {
-    pixels
-        .iter()
-        .map(|(_, _, px_color)| {
-            (px_color[0] as i32 - color[0] as i32).abs()
-                + (px_color[1] as i32 - color[1] as i32).abs()
-                + (px_color[2] as i32 - color[2] as i32).abs()
-        })
-        .sum()
-}
-
-fn approximate_image_with_char<Img>(img: &Img, unicode: char) -> (i32, Rgb<u8>, Rgb<u8>)
+fn approximate_image_with_char<Img>(img: &Img, unicode: &Unicode) -> (Rgb<u8>, Rgb<u8>)
 where
     Img: GenericImage<Pixel = Rgba<u8>>,
 {
-    let img_dims = Rectangle::from_tuple(img.dimensions());
-    let mut fg_pixels = unicode::fg(unicode, img_dims);
-    let fg = img.pixels().filter(|x| fg_pixels(x)).collect::<Vec<_>>();
-    let bg = img.pixels().filter(|x| !fg_pixels(x)).collect::<Vec<_>>();
+    let fg_pixels = unicode.bitmap();
+    let fg = img
+        .pixels()
+        .filter(|(x, y, _)| get_bit_at_index(fg_pixels, x * img.height() + y))
+        .collect::<Vec<_>>();
+    let bg = img
+        .pixels()
+        .filter(|(x, y, _)| !get_bit_at_index(fg_pixels, x * img.height() + y))
+        .collect::<Vec<_>>();
     let fg_color = average_rgb(&fg);
     let bg_color = average_rgb(&bg);
-    let fitness = pixels_fitness(&fg, fg_color) + pixels_fitness(&bg, bg_color);
-    (fitness, fg_color, bg_color)
+    (fg_color, bg_color)
 }
 
 fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static> {
-    // This is no good because I do a lot of work for each character.
-    // Instead, I should
-    // - sort the pixels by color once,
-    // - pick the median and consider the 2 bitmaps:
-    // - first fg then bg and first bg then fg
-    // For each char, I just have to find the bitmap that best fits any of these 2
-    // I can then pick the right color with my current approximate_image_with_char function
-    let mut unicode = unicode::FULL_BLOCK;
-    let (mut fitness, mut fg, mut bg) = approximate_image_with_char(img, unicode);
-    for unicode_char in unicode::ALL.iter() {
-        let (new_fitness, new_fg, new_bg) = approximate_image_with_char(img, *unicode_char);
-        if new_fitness < fitness {
-            fitness = new_fitness;
-            fg = new_fg;
-            bg = new_bg;
-            unicode = *unicode_char
-        }
-    }
-    to_ansi(fg).on(to_ansi(bg)).paint(unicode.to_string())
+    let min_px = img
+        .pixels()
+        .min_by_key(|(_, _, px)| norm(&px.to_rgb()))
+        .unwrap();
+    let max_px = img
+        .pixels()
+        .max_by_key(|(_, _, px)| norm(&px.to_rgb()))
+        .unwrap();
+    let median_color = average_rgb(&[min_px, max_px]);
+    let mut bitmap: u32 = 0;
+    img.pixels()
+        .filter(|(_, _, p)| norm(&p.to_rgb()) < norm(&median_color))
+        .for_each(|(x, y, _)| {
+            set_bit_at_index(&mut bitmap, x * img.height() + y);
+        });
+
+    let all_characters = Unicode::all();
+    let best_fit = all_characters
+        .iter()
+        .min_by_key(|c| {
+            std::cmp::min(
+            hamming_weight(c.bitmap() ^ bitmap),
+            hamming_weight(c.bitmap() ^ !bitmap),
+        )
+        })
+        .unwrap();
+    let (fg, bg) = approximate_image_with_char(img, best_fit);
+    to_ansi(fg)
+        .on(to_ansi(bg))
+        .paint(best_fit.character().to_string())
 }
 
 fn main() {
@@ -180,7 +225,11 @@ fn main() {
     let char_dims = Rectangle::from_tuple((4, 8));
     let screen_dims = Rectangle::from_termsize();
     // Resize the image so it fits within the screen (preserves ratio)
-    img = img.resize(screen_dims.width * char_dims.width, screen_dims.height * char_dims.height, image::FilterType::Nearest);
+    img = img.resize(
+        screen_dims.width * char_dims.width,
+        screen_dims.height * char_dims.height,
+        image::FilterType::Nearest,
+    );
 
     let mut strings: Vec<ANSIString<'static>> = vec![];
     for col in 0..img.height() / char_dims.height {
