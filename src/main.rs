@@ -130,10 +130,6 @@ fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-fn norm(rgb: &Rgb<u8>) -> u8 {
-    rgb[0] + rgb[1] + rgb[2]
-}
-
 fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     let mut n = 0;
     let rgb = pxs
@@ -174,19 +170,23 @@ where
     (fg_color, bg_color)
 }
 
+fn min_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize) -> u8 {
+    img.pixels().map(|(_, _, px)| px[channel]).min().unwrap()
+}
+fn max_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize) -> u8 {
+    img.pixels().map(|(_, _, px)| px[channel]).max().unwrap()
+}
+
 fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static> {
-    let min_px = img
-        .pixels()
-        .min_by_key(|(_, _, px)| norm(&px.to_rgb()))
+    let (channel, (min, max)) = (0..3)
+        .map(|channel| (min_by_channel(img, channel), max_by_channel(img, channel)))
+        .enumerate()
+        .max_by_key(|(_, (min, max))| max - min)
         .unwrap();
-    let max_px = img
-        .pixels()
-        .max_by_key(|(_, _, px)| norm(&px.to_rgb()))
-        .unwrap();
-    let median_color = average_rgb(&[min_px, max_px]);
+    let split_value = min + (max - min) / 2;
     let mut bitmap: u32 = 0;
     img.pixels()
-        .filter(|(_, _, p)| norm(&p.to_rgb()) < norm(&median_color))
+        .filter(|(_, _, p)| p[channel] < split_value)
         .for_each(|(x, y, _)| {
             set_bit_at_index(&mut bitmap, x * img.height() + y);
         });
@@ -196,9 +196,9 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'
         .iter()
         .min_by_key(|c| {
             std::cmp::min(
-            hamming_weight(c.bitmap() ^ bitmap),
-            hamming_weight(c.bitmap() ^ !bitmap),
-        )
+                hamming_weight(c.bitmap() ^ bitmap),
+                hamming_weight(c.bitmap() ^ !bitmap),
+            )
         })
         .unwrap();
     let (fg, bg) = approximate_image_with_char(img, best_fit);
