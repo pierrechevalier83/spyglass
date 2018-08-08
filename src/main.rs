@@ -211,7 +211,7 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'
     img.pixels()
         .filter(|(_, _, p)| p[channel] < split_value)
         .for_each(|(x, y, _)| {
-            set_bit_at_index(&mut bitmap, x * img.height() + y);
+            set_bit_at_index(&mut bitmap, x + y * img.width());
         });
 
     let all_characters = Unicode::all();
