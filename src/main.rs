@@ -167,10 +167,12 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
         for j in 4..8 {
-            img.put_pixel(i, j, Rgba([1, 1, 1, 1]))
+            img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
-    assert_eq!((Rgb([1, 1, 1]), Rgb([0, 0, 0])), approximate_image_with_char(&img, &half_box));
+    assert_eq!((Rgb([255, 255, 255]), Rgb([0, 0, 0])), approximate_image_with_char(&img, &half_box));
+    img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
+    assert_eq!((Rgb([255, 255, 255]), Rgb([15, 0, 15])), approximate_image_with_char(&img, &half_box));
 }
 
 fn approximate_image_with_char<Img>(img: &Img, unicode: &Unicode) -> (Rgb<u8>, Rgb<u8>)
