@@ -86,7 +86,8 @@ impl Unicode {
     }
 }
 
-#[test] fn test_get_bit_at_index() {
+#[test]
+fn test_get_bit_at_index() {
     let lower_half = Unicode::LowerHalfBlock.bitmap();
     assert_eq!(false, get_bit_at_index(lower_half, 0));
     assert_eq!(false, get_bit_at_index(lower_half, 1));
@@ -162,7 +163,8 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     }
 }
 
-#[test] fn test_approximate_image_with_char() {
+#[test]
+fn test_approximate_image_with_char() {
     let half_box = Unicode::LowerHalfBlock;
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
@@ -170,9 +172,15 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
             img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
-    assert_eq!((Rgb([255, 255, 255]), Rgb([0, 0, 0])), approximate_image_with_char(&img, &half_box));
+    assert_eq!(
+        (Rgb([255, 255, 255]), Rgb([0, 0, 0])),
+        approximate_image_with_char(&img, &half_box)
+    );
     img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
-    assert_eq!((Rgb([255, 255, 255]), Rgb([15, 0, 15])), approximate_image_with_char(&img, &half_box));
+    assert_eq!(
+        (Rgb([255, 255, 255]), Rgb([15, 0, 15])),
+        approximate_image_with_char(&img, &half_box)
+    );
 }
 
 fn approximate_image_with_char<Img>(img: &Img, unicode: &Unicode) -> (Rgb<u8>, Rgb<u8>)
@@ -198,6 +206,31 @@ fn min_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize
 }
 fn max_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize) -> u8 {
     img.pixels().map(|(_, _, px)| px[channel]).max().unwrap()
+}
+
+#[test]
+fn test_image_as_char() {
+    let half_box = Unicode::LowerHalfBlock.character();
+    let mut img = image::ImageBuffer::new(4, 8);
+    for i in 0..4 {
+        for j in 4..8 {
+            img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
+        }
+    }
+
+    assert_eq!(
+        to_ansi(Rgb([255, 255, 255]))
+            .on(to_ansi(Rgb([0, 0, 0])))
+            .paint(half_box.to_string()),
+        image_as_char(&img)
+    );
+    img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
+    assert_eq!(
+        to_ansi(Rgb([255, 255, 255]))
+            .on(to_ansi(Rgb([15, 0, 15])))
+            .paint(half_box.to_string()),
+        image_as_char(&img)
+    );
 }
 
 fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static> {
