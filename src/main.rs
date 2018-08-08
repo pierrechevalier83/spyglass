@@ -1,94 +1,24 @@
 extern crate ansi_term;
 extern crate clap;
+extern crate font_rs;
 extern crate image;
 extern crate termsize;
 
 use ansi_term::Colour::RGB;
 use ansi_term::{ANSIString, ANSIStrings};
 use clap::{App, Arg};
+use font_rs::font::Font;
 use image::{GenericImage, Pixel, Rgb, Rgba};
+use std::fs::File;
+use std::io::Read;
 
-enum Unicode {
-    Space,
-    LowerOneEigthBlock,
-    LowerOneQuarterBlock,
-    LowerThreeEigthsBlock,
-    LowerHalfBlock,
-    LowerFiveEigthsBlock,
-    LowerThreeQuartersBlock,
-    LowerSevenEigthsBlock,
-    LeftOneQuarterBlock,
-    LeftHalfBlock,
-    LeftThreeQuartersBlock,
-    QuadrantLowerLeft,
-    QuadrantLowerRight,
-    QuadrantUpperLeft,
-    QuadrantUpperRight,
-}
-
-impl Unicode {
-    fn all() -> Vec<Unicode> {
-        vec![
-            Unicode::Space,
-            Unicode::LowerOneEigthBlock,
-            Unicode::LowerOneQuarterBlock,
-            Unicode::LowerThreeEigthsBlock,
-            Unicode::LowerHalfBlock,
-            Unicode::LowerFiveEigthsBlock,
-            Unicode::LowerThreeQuartersBlock,
-            Unicode::LowerSevenEigthsBlock,
-            Unicode::LeftOneQuarterBlock,
-            Unicode::LeftHalfBlock,
-            Unicode::LeftThreeQuartersBlock,
-            Unicode::QuadrantLowerLeft,
-            Unicode::QuadrantLowerRight,
-            Unicode::QuadrantUpperLeft,
-            Unicode::QuadrantUpperRight,
-        ]
-    }
-    fn character(&self) -> char {
-        match self {
-            Unicode::Space => ' ',
-            Unicode::LowerOneEigthBlock => '▁',
-            Unicode::LowerOneQuarterBlock => '▂',
-            Unicode::LowerThreeEigthsBlock => '▃',
-            Unicode::LowerHalfBlock => '▄',
-            Unicode::LowerFiveEigthsBlock => '▅',
-            Unicode::LowerThreeQuartersBlock => '▆',
-            Unicode::LowerSevenEigthsBlock => '▇',
-            Unicode::LeftOneQuarterBlock => '▎',
-            Unicode::LeftHalfBlock => '▌',
-            Unicode::LeftThreeQuartersBlock => '▊',
-            Unicode::QuadrantLowerLeft => '▖',
-            Unicode::QuadrantLowerRight => '▗',
-            Unicode::QuadrantUpperLeft => '▘',
-            Unicode::QuadrantUpperRight => '▝',
-        }
-    }
-    fn bitmap(&self) -> u32 {
-        match self {
-            Unicode::Space => 0x00000000,
-            Unicode::LowerOneEigthBlock => 0x0000000f,
-            Unicode::LowerOneQuarterBlock => 0x000000ff,
-            Unicode::LowerThreeEigthsBlock => 0x00000fff,
-            Unicode::LowerHalfBlock => 0x0000ffff,
-            Unicode::LowerFiveEigthsBlock => 0x000fffff,
-            Unicode::LowerThreeQuartersBlock => 0x00ffffff,
-            Unicode::LowerSevenEigthsBlock => 0x07ffffff,
-            Unicode::LeftOneQuarterBlock => 0x88888888,
-            Unicode::LeftHalfBlock => 0xcccccccc,
-            Unicode::LeftThreeQuartersBlock => 0xeeeeeeee,
-            Unicode::QuadrantLowerLeft => 0x0000cccc,
-            Unicode::QuadrantLowerRight => 0x00003333,
-            Unicode::QuadrantUpperLeft => 0xcccc0000,
-            Unicode::QuadrantUpperRight => 0x33330000,
-        }
-    }
+fn all_unicode() -> Vec<char> {
+    vec!('▁', '▂', '▃', '▄', '▅', '▆', '▇', '▎', '▌', '▊', '▖', '▗', '▘', '▝')
 }
 
 #[test]
 fn test_get_bit_at_index() {
-    let lower_half = Unicode::LowerHalfBlock.bitmap();
+    let lower_half = 0x0000ffff;
     assert_eq!(false, get_bit_at_index(lower_half, 0));
     assert_eq!(false, get_bit_at_index(lower_half, 1));
     assert_eq!(false, get_bit_at_index(lower_half, 15));
@@ -165,29 +95,31 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
 
 #[test]
 fn test_approximate_image_with_char() {
-    let half_box = Unicode::LowerHalfBlock;
+    let half_box = '▄';
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
         for j in 4..8 {
             img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
+    let font_data = font_data();
+    let font = font_rs::font::parse(&font_data).unwrap();
     assert_eq!(
         (Rgb([255, 255, 255]), Rgb([0, 0, 0])),
-        approximate_image_with_char(&img, &half_box)
+        approximate_image_with_char(&img, &half_box, &font)
     );
     img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
     assert_eq!(
         (Rgb([255, 255, 255]), Rgb([15, 0, 15])),
-        approximate_image_with_char(&img, &half_box)
+        approximate_image_with_char(&img, &half_box, &font)
     );
 }
 
-fn approximate_image_with_char<Img>(img: &Img, unicode: &Unicode) -> (Rgb<u8>, Rgb<u8>)
+fn approximate_image_with_char<Img>(img: &Img, unicode: &char, font: &Font) -> (Rgb<u8>, Rgb<u8>)
 where
     Img: GenericImage<Pixel = Rgba<u8>>,
 {
-    let fg_pixels = unicode.bitmap();
+    let fg_pixels = char_to_bitmap(font, *unicode);
     let fg = img
         .pixels()
         .filter(|(x, y, _)| get_bit_at_index(fg_pixels, x + y * img.width()))
@@ -210,30 +142,31 @@ fn max_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize
 
 #[test]
 fn test_image_as_char() {
-    let half_box = Unicode::LowerHalfBlock.character();
+    let half_box = '▄';
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
         for j in 4..8 {
             img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
-
+    let font_data = font_data();
+    let font = font_rs::font::parse(&font_data).unwrap();
     assert_eq!(
         to_ansi(Rgb([255, 255, 255]))
             .on(to_ansi(Rgb([0, 0, 0])))
             .paint(half_box.to_string()),
-        image_as_char(&img)
+        image_as_char(&img, &font)
     );
     img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
     assert_eq!(
         to_ansi(Rgb([255, 255, 255]))
             .on(to_ansi(Rgb([15, 0, 15])))
             .paint(half_box.to_string()),
-        image_as_char(&img)
+        image_as_char(&img, &font)
     );
 }
 
-fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'static> {
+fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, font: &Font) -> ANSIString<'static> {
     let (channel, (min, max)) = (0..3)
         .map(|channel| (min_by_channel(img, channel), max_by_channel(img, channel)))
         .enumerate()
@@ -247,20 +180,71 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img) -> ANSIString<'
             set_bit_at_index(&mut bitmap, x + y * img.width());
         });
 
-    let all_characters = Unicode::all();
+    let all_characters = all_unicode();
     let best_fit = all_characters
-        .iter()
+        .into_iter()
         .min_by_key(|c| {
             std::cmp::min(
-                hamming_weight(c.bitmap() ^ bitmap),
-                hamming_weight(c.bitmap() ^ !bitmap),
+                hamming_weight(char_to_bitmap(font, *c) ^ bitmap),
+                hamming_weight(char_to_bitmap(font, *c) ^ !bitmap),
             )
         })
         .unwrap();
-    let (fg, bg) = approximate_image_with_char(img, best_fit);
+    let (fg, bg) = approximate_image_with_char(img, &best_fit, &font);
     to_ansi(fg)
         .on(to_ansi(bg))
-        .paint(best_fit.character().to_string())
+        .paint(best_fit.to_string())
+}
+
+#[test]
+fn test_char_to_bitmap() {
+    let mut font_file = File::open("fonts/SourceCodePro-Black.ttf").unwrap();
+    let mut data = Vec::new();
+    font_file.read_to_end(&mut data).unwrap();
+    let font = font_rs::font::parse(&data).unwrap();
+    assert_eq!(0x0000cccc, char_to_bitmap(&font, '▖'));
+    assert_eq!(0x00003333, char_to_bitmap(&font, '▗'));
+    assert_eq!(0xcccc0000, char_to_bitmap(&font, '▘'));
+    assert_eq!(0x33330000, char_to_bitmap(&font, '▝'));
+    assert_eq!(0x0000000f, char_to_bitmap(&font, '▁'));
+    assert_eq!(0x000000ff, char_to_bitmap(&font, '▂'));
+    assert_eq!(0x00000fff, char_to_bitmap(&font, '▃'));
+    assert_eq!(0x0000ffff, char_to_bitmap(&font, '▄'));
+    assert_eq!(0x000fffff, char_to_bitmap(&font, '▅'));
+    assert_eq!(0x00ffffff, char_to_bitmap(&font, '▆'));
+    assert_eq!(0x0fffffff, char_to_bitmap(&font, '▇'));
+    assert_eq!(0x88888888, char_to_bitmap(&font, '▎'));
+    assert_eq!(0xcccccccc, char_to_bitmap(&font, '▌'));
+    assert_eq!(0xeeeeeeee, char_to_bitmap(&font, '▊'));
+}
+
+fn char_to_bitmap(font: &Font, character: char) -> u32 {
+    // Render the glyph with an 8 pt font
+    let glyph_bitmap = font
+        .render_glyph(font.lookup_glyph_id(character as u32).unwrap(), 8)
+        .unwrap();
+    let mut bitmap = 0;
+    // skip 1 row and 1 col because there is always a shading area that's
+    // 1 pixel on the top and on the right.
+    let (w, h) = (4, 8);
+    let first_row_index = (h + glyph_bitmap.top - 1) as usize;
+    glyph_bitmap.data.chunks(glyph_bitmap.width).skip(1).enumerate().for_each(|(x, row)| {
+        let x = first_row_index + x;
+        row.iter().skip(1).enumerate().for_each(|(y, color)| {
+            let index = w * ( x as i32) + y as i32 + glyph_bitmap.left as i32;
+            if *color > 0 && index < 32 {
+                set_bit_at_index(&mut bitmap, index as u32);
+            }
+        });
+    });
+    bitmap
+}
+
+fn font_data() -> Vec<u8> {
+    let mut font_file = File::open("fonts/SourceCodePro-Regular.ttf").unwrap();
+    let mut data = Vec::new();
+    font_file.read_to_end(&mut data).unwrap();
+    data
 }
 
 fn main() {
@@ -277,6 +261,9 @@ fn main() {
         .get_matches();
     let img_path = matches.value_of("INPUT").unwrap();
     let mut img = image::open(img_path).unwrap();
+
+    let font_data = font_data();
+    let font = font_rs::font::parse(&font_data).unwrap();
 
     let char_dims = Rectangle::from_tuple((4, 8));
     let screen_dims = Rectangle::from_termsize();
@@ -297,7 +284,7 @@ fn main() {
                     char_dims.width,
                     char_dims.height,
                 ).to_image();
-            strings.push(image_as_char(&sub));
+            strings.push(image_as_char(&sub, &font));
         }
         strings.push(ansi_term::Style::new().paint("\n"));
     }
