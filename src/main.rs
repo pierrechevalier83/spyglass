@@ -13,12 +13,27 @@ use image::{GenericImage, Pixel, Rgb, Rgba};
 
 fn all_unicode() -> Vec<char> {
     let mut all = Vec::new();
-    // box drawing
-    all.extend(0x2500..0x257F);
-    // block elements
-    all.extend(0x2580..0x259F);
-    // geometric shapes
-    all.extend(0x25A0..0x25FF);
+    // ascii
+    all.extend(0x0021..0x007E);
+    // box drawing: 0x2500..0x257F
+    all.extend(&[
+        0x2501, 0x2503, 0x250F, 0x2510, 0x2517, 0x251B, 0x2523, 0x252B, 0x2522, 0x252B, 0x2533,
+        0x253B, 0x254B,
+    ]);
+    // block elements: 0x2580..0x259F
+    all.extend(0x2580..0x2591);
+    all.extend(0x2594..0x259F);
+    // geometric shapes: 0x25A0..0x25FF
+    all.extend(&[
+        0x25A0, 0x25AA, 0x25AC, 0x25AD, 0x25C6, 0x25CF, 0x25D6, 0x25D7,
+    ]);
+    // triangular shapes
+    all.extend(&[0x25B0, 0x25B2, 0x25B6, 0x25BC, 0x25C0, 0x25C6]);
+    all.extend(0x25E2..0x25E5);
+    // miscellaneous symbols
+    all.extend(&[0x2660, 0x2663, 0x2665, 0x2666]);
+    // miscellaneous symbols and arrows
+    all.extend(0x2BC0..0x2BC8);
     all.iter()
         .map(|x| std::char::from_u32(*x).unwrap())
         .collect()
