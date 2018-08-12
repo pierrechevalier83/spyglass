@@ -60,13 +60,6 @@ fn set_bit_at_index(bitmap: &mut u32, index: u32) {
     *bitmap |= bit;
 }
 
-// The number of bits set
-fn hamming_weight(val: u32) -> u32 {
-    let v1 = val - ((val >> 1) & 0x55555555);
-    let v2 = (v1 & 0x33333333) + ((v1 >> 2) & 0x33333333);
-    (((v2 + (v2 >> 4)) & 0xF0F0F0F).wrapping_mul(0x1010101)) >> 24
-}
-
 #[derive(Debug)]
 struct Rectangle {
     width: u32,
@@ -208,8 +201,8 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
         .into_iter()
         .min_by_key(|char_bitmap| {
             std::cmp::min(
-                hamming_weight(char_bitmap.1 ^ bitmap),
-                hamming_weight(char_bitmap.1 ^ !bitmap),
+                (char_bitmap.1 ^ bitmap).count_ones(),
+                (char_bitmap.1 ^ !bitmap).count_ones(),
             )
         })
         .unwrap();
