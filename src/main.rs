@@ -98,38 +98,37 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
 }
 
 #[test]
-fn test_approximate_image_with_char() {
-    let half_box = '▄';
+fn test_approximate_image_with_bitmap() {
+    let font = load_font();
+    let half_box = char_to_bitmap(&font, '▄');
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
         for j in 4..8 {
             img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
-    let font = load_font();
     assert_eq!(
         (Rgb([255, 255, 255]), Rgb([0, 0, 0])),
-        approximate_image_with_char(&img, &half_box, &font)
+        approximate_image_with_bitmap(&img, half_box)
     );
     img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
     assert_eq!(
         (Rgb([255, 255, 255]), Rgb([15, 0, 15])),
-        approximate_image_with_char(&img, &half_box, &font)
+        approximate_image_with_bitmap(&img, half_box)
     );
 }
 
-fn approximate_image_with_char<Img>(img: &Img, unicode: &char, font: &Font) -> (Rgb<u8>, Rgb<u8>)
+fn approximate_image_with_bitmap<Img>(img: &Img, bitmap: u32) -> (Rgb<u8>, Rgb<u8>)
 where
     Img: GenericImage<Pixel = Rgba<u8>>,
 {
-    let fg_pixels = char_to_bitmap(font, *unicode);
     let fg = img
         .pixels()
-        .filter(|(x, y, _)| get_bit_at_index(fg_pixels, x + y * img.width()))
+        .filter(|(x, y, _)| get_bit_at_index(bitmap, x + y * img.width()))
         .collect::<Vec<_>>();
     let bg = img
         .pixels()
-        .filter(|(x, y, _)| !get_bit_at_index(fg_pixels, x + y * img.width()))
+        .filter(|(x, y, _)| !get_bit_at_index(bitmap, x + y * img.width()))
         .collect::<Vec<_>>();
     let fg_color = average_rgb(&fg);
     let bg_color = average_rgb(&bg);
@@ -146,18 +145,18 @@ fn max_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize
 #[test]
 fn test_image_as_char() {
     let half_box = '▄';
+    let all_chars_and_bitmaps = all_chars_and_bitmaps();
     let mut img = image::ImageBuffer::new(4, 8);
     for i in 0..4 {
         for j in 4..8 {
             img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
         }
     }
-    let font = load_font();
     assert_eq!(
         to_ansi(Rgb([255, 255, 255]))
             .on(to_ansi(Rgb([0, 0, 0])))
             .paint(half_box.to_string()),
-        image_as_char(&img, &font)
+        image_as_char(&img, &all_chars_and_bitmaps)
     );
 
     img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
@@ -165,13 +164,13 @@ fn test_image_as_char() {
         to_ansi(Rgb([255, 255, 255]))
             .on(to_ansi(Rgb([15, 0, 15])))
             .paint(half_box.to_string()),
-        image_as_char(&img, &font)
+        image_as_char(&img, &all_chars_and_bitmaps)
     );
 }
 
 fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
     img: &Img,
-    font: &Font,
+    all_chars_and_bitmaps: &[(char, u32)],
 ) -> ANSIString<'static> {
     let (channel, (min, max)) = (0..3)
         .map(|channel| (min_by_channel(img, channel), max_by_channel(img, channel)))
@@ -186,18 +185,17 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
             set_bit_at_index(&mut bitmap, x + y * img.width());
         });
 
-    let all_characters = all_unicode();
-    let best_fit = all_characters
+    let best_fit = all_chars_and_bitmaps
         .into_iter()
-        .min_by_key(|c| {
+        .min_by_key(|char_bitmap| {
             std::cmp::min(
-                hamming_weight(char_to_bitmap(font, *c) ^ bitmap),
-                hamming_weight(char_to_bitmap(font, *c) ^ !bitmap),
+                hamming_weight(char_bitmap.1 ^ bitmap),
+                hamming_weight(char_bitmap.1 ^ !bitmap),
             )
         })
         .unwrap();
-    let (fg, bg) = approximate_image_with_char(img, &best_fit, &font);
-    to_ansi(fg).on(to_ansi(bg)).paint(best_fit.to_string())
+    let (fg, bg) = approximate_image_with_bitmap(img, best_fit.1);
+    to_ansi(fg).on(to_ansi(bg)).paint(best_fit.0.to_string())
 }
 
 #[test]
@@ -254,6 +252,15 @@ fn load_font() -> Font<'static> {
     font
 }
 
+fn all_chars_and_bitmaps() -> Vec<(char, u32)> {
+    let font = load_font();
+    let all_chars = all_unicode();
+    all_chars
+        .iter()
+        .map(|c| (*c, char_to_bitmap(&font, *c)))
+        .collect()
+}
+
 fn main() {
     let matches = App::new("spyglass")
         .version("0.1")
@@ -269,7 +276,7 @@ fn main() {
     let img_path = matches.value_of("INPUT").unwrap();
     let mut img = image::open(img_path).unwrap();
 
-    let font = load_font();
+    let all_chars_and_bitmaps = all_chars_and_bitmaps();
 
     let char_dims = Rectangle::from_tuple((4, 8));
     let screen_dims = Rectangle::from_termsize();
@@ -290,7 +297,7 @@ fn main() {
                     char_dims.width,
                     char_dims.height,
                 ).to_image();
-            strings.push(image_as_char(&sub, &font));
+            strings.push(image_as_char(&sub, &all_chars_and_bitmaps));
         }
         strings.push(ansi_term::Style::new().paint("\n"));
     }
