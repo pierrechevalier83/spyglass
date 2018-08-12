@@ -12,12 +12,16 @@ use clap::{App, Arg};
 use image::{GenericImage, Pixel, Rgb, Rgba};
 
 fn all_unicode() -> Vec<char> {
-    vec![
-        '▁', '▂', '▃', '▄', '▅', '▆', '▇', '▎', '▌', '▊', '▖', '▗', '▘',
-        '▝', '▚', '━', '┃', '┏', '┓', '┗', '┛', '┣', '┫', '┳', '┻', '╋',
-        '■', '▪', '▬', '▮', '▰', '▲', '▶', '▼', '◀', '◆', '●', '◖', '◗',
-        '◢', '◣', '◤', '◥',
-    ]
+    let mut all = Vec::new();
+    // box drawing
+    all.extend(0x2500..0x257F);
+    // block elements
+    all.extend(0x2580..0x259F);
+    // geometric shapes
+    all.extend(0x25A0..0x25FF);
+    all.iter()
+        .map(|x| std::char::from_u32(*x).unwrap())
+        .collect()
 }
 
 #[test]
