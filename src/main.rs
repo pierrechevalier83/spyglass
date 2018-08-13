@@ -49,14 +49,12 @@ fn test_get_bit_at_index() {
     assert_eq!(true, get_bit_at_index(lower_half, 31));
 }
 
-fn get_bit_at_index(bitmap: u32, index: u32) -> bool {
-    // Reading bits from left to right,
-    // so index 0 == most significant digit
-    (bitmap & (1 << (31 - index))) != 0
+fn get_bit_at_index(bitmap: u128, index: u32) -> bool {
+    (bitmap & (1 << (127 - index))) != 0
 }
 
-fn set_bit_at_index(bitmap: &mut u32, index: u32) {
-    let bit = 1 << (31 - index);
+fn set_bit_at_index(bitmap: &mut u128, index: u32) {
+    let bit = 1 << (127 - index);
     *bitmap |= bit;
 }
 
@@ -109,28 +107,7 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
     }
 }
 
-#[test]
-fn test_approximate_image_with_bitmap() {
-    let font = load_font();
-    let half_box = char_to_bitmap(&font, '▄');
-    let mut img = image::ImageBuffer::new(4, 8);
-    for i in 0..4 {
-        for j in 4..8 {
-            img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
-        }
-    }
-    assert_eq!(
-        (Rgb([255, 255, 255]), Rgb([0, 0, 0])),
-        approximate_image_with_bitmap(&img, half_box)
-    );
-    img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
-    assert_eq!(
-        (Rgb([255, 255, 255]), Rgb([15, 0, 15])),
-        approximate_image_with_bitmap(&img, half_box)
-    );
-}
-
-fn approximate_image_with_bitmap<Img>(img: &Img, bitmap: u32) -> (Rgb<u8>, Rgb<u8>)
+fn approximate_image_with_bitmap<Img>(img: &Img, bitmap: u128) -> (Rgb<u8>, Rgb<u8>)
 where
     Img: GenericImage<Pixel = Rgba<u8>>,
 {
@@ -154,35 +131,9 @@ fn max_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize
     img.pixels().map(|(_, _, px)| px[channel]).max().unwrap()
 }
 
-#[test]
-fn test_image_as_char() {
-    let half_box = '▄';
-    let all_chars_and_bitmaps = all_chars_and_bitmaps();
-    let mut img = image::ImageBuffer::new(4, 8);
-    for i in 0..4 {
-        for j in 4..8 {
-            img.put_pixel(i, j, Rgba([255, 255, 255, 1]))
-        }
-    }
-    assert_eq!(
-        to_ansi(Rgb([255, 255, 255]))
-            .on(to_ansi(Rgb([0, 0, 0])))
-            .paint(half_box.to_string()),
-        image_as_char(&img, &all_chars_and_bitmaps)
-    );
-
-    img.put_pixel(0, 0, Rgba([255, 0, 255, 1]));
-    assert_eq!(
-        to_ansi(Rgb([255, 255, 255]))
-            .on(to_ansi(Rgb([15, 0, 15])))
-            .paint(half_box.to_string()),
-        image_as_char(&img, &all_chars_and_bitmaps)
-    );
-}
-
 fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
     img: &Img,
-    all_chars_and_bitmaps: &[(char, u32)],
+    all_chars_and_bitmaps: &[(char, u128)],
 ) -> ANSIString<'static> {
     let (channel, (min, max)) = (0..3)
         .map(|channel| (min_by_channel(img, channel), max_by_channel(img, channel)))
@@ -190,7 +141,7 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
         .max_by_key(|(_, (min, max))| max - min)
         .unwrap();
     let split_value = min + (max - min) / 2;
-    let mut bitmap: u32 = 0;
+    let mut bitmap: u128 = 0;
     img.pixels()
         .filter(|(_, _, p)| p[channel] < split_value)
         .for_each(|(x, y, _)| {
@@ -210,39 +161,17 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
     to_ansi(fg).on(to_ansi(bg)).paint(best_fit.0.to_string())
 }
 
-#[test]
-fn test_char_to_bitmap() {
-    let font = load_font();
-    assert_eq!(0xffffffff, char_to_bitmap(&font, '█'));
-    assert_eq!(0x0000cccc, char_to_bitmap(&font, '▖'));
-    assert_eq!(0xcccc0000, char_to_bitmap(&font, '▘'));
-    assert_eq!(0x00003333, char_to_bitmap(&font, '▗'));
-    assert_eq!(0xcccc0000, char_to_bitmap(&font, '▘'));
-    assert_eq!(0x33330000, char_to_bitmap(&font, '▝'));
-    assert_eq!(0x0000000f, char_to_bitmap(&font, '▁'));
-    assert_eq!(0x000000ff, char_to_bitmap(&font, '▂'));
-    assert_eq!(0x00000fff, char_to_bitmap(&font, '▃'));
-    assert_eq!(0x0000ffff, char_to_bitmap(&font, '▄'));
-    assert_eq!(0x000fffff, char_to_bitmap(&font, '▅'));
-    assert_eq!(0x00ffffff, char_to_bitmap(&font, '▆'));
-    assert_eq!(0x0fffffff, char_to_bitmap(&font, '▇'));
-    assert_eq!(0x88888888, char_to_bitmap(&font, '▎'));
-    assert_eq!(0xcccccccc, char_to_bitmap(&font, '▌'));
-    assert_eq!(0xeeeeeeee, char_to_bitmap(&font, '▊'));
-    assert_eq!(0x00066000, char_to_bitmap(&font, '▪'));
-}
-
-fn char_to_bitmap(font: &Font, character: char) -> u32 {
+fn char_to_bitmap(font: &Font, character: char) -> u128 {
     // Render the glyph with an 8 pt font
     let mut bitmap = 0;
     let glyph = font
         .glyph(character)
-        .scaled(Scale::uniform(8.))
+        .scaled(Scale::uniform(16.))
         .positioned(Point { x: 0., y: 0. });
     let bb = glyph.pixel_bounding_box().unwrap();
     let x_starts = bb.min.x as u32;
-    let y_starts = (bb.min.y + 7) as u32;
-    let char_witdth = 4;
+    let y_starts = (bb.min.y + 14) as u32;
+    let char_witdth = 8;
     glyph.draw(|x, y, v| {
         let index = x + x_starts + (y + y_starts) * char_witdth;
         if v > 0. {
@@ -264,7 +193,7 @@ fn load_font() -> Font<'static> {
     font
 }
 
-fn all_chars_and_bitmaps() -> Vec<(char, u32)> {
+fn all_chars_and_bitmaps() -> Vec<(char, u128)> {
     let font = load_font();
     let all_chars = all_unicode();
     all_chars
@@ -290,7 +219,7 @@ fn main() {
 
     let all_chars_and_bitmaps = all_chars_and_bitmaps();
 
-    let char_dims = Rectangle::from_tuple((4, 8));
+    let char_dims = Rectangle::from_tuple((8, 16));
     let screen_dims = Rectangle::from_termsize();
     // Resize the image so it fits within the screen (preserves ratio)
     img = img.resize(
