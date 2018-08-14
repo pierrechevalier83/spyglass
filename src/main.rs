@@ -32,12 +32,12 @@ fn all_unicode() -> Vec<char> {
 
 #[test]
 fn test_get_bit_at_index() {
-    let lower_half = 0x0000ffff;
+    let lower_half = 0x0000000000000000ffffffffffffffff;
     assert_eq!(false, get_bit_at_index(lower_half, 0));
     assert_eq!(false, get_bit_at_index(lower_half, 1));
-    assert_eq!(false, get_bit_at_index(lower_half, 15));
-    assert_eq!(true, get_bit_at_index(lower_half, 16));
-    assert_eq!(true, get_bit_at_index(lower_half, 31));
+    assert_eq!(false, get_bit_at_index(lower_half, 64));
+    assert_eq!(true, get_bit_at_index(lower_half, 65));
+    assert_eq!(true, get_bit_at_index(lower_half, 127));
 }
 
 fn get_bit_at_index(bitmap: u128, index: u32) -> bool {
@@ -76,7 +76,7 @@ fn to_ansi(rgb: Rgb<u8>) -> ansi_term::Color {
     RGB(rgb[0], rgb[1], rgb[2])
 }
 
-fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
+fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Option<Rgb<u8>> {
     let mut n = 0;
     let rgb = pxs
         .iter()
@@ -92,9 +92,13 @@ fn average_rgb(pxs: &[(u32, u32, Rgba<u8>)]) -> Rgb<u8> {
             ],
         });
     if n == 0 {
-        Rgb([0, 0, 0])
+        None
     } else {
-        Rgb([(rgb[0] / n) as u8, (rgb[1] / n) as u8, (rgb[2] / n) as u8])
+        Some(Rgb([
+            (rgb[0] / n) as u8,
+            (rgb[1] / n) as u8,
+            (rgb[2] / n) as u8,
+        ]))
     }
 }
 
@@ -110,9 +114,16 @@ where
         .pixels()
         .filter(|(x, y, _)| !get_bit_at_index(bitmap, x + y * img.width()))
         .collect::<Vec<_>>();
-    let fg_color = average_rgb(&fg);
-    let bg_color = average_rgb(&bg);
-    (fg_color, bg_color)
+    let maybe_bg = average_rgb(&bg);
+    if let Some(fg_color) = average_rgb(&fg) {
+        if let Some(bg_color) = maybe_bg {
+            (fg_color, bg_color)
+        } else {
+            (fg_color, fg_color)
+        }
+    } else {
+        (maybe_bg.unwrap(), maybe_bg.unwrap())
+    }
 }
 
 fn min_by_channel<Img: GenericImage<Pixel = Rgba<u8>>>(img: &Img, channel: usize) -> u8 {
@@ -152,28 +163,59 @@ fn image_as_char<Img: GenericImage<Pixel = Rgba<u8>>>(
     to_ansi(fg).on(to_ansi(bg)).paint(best_fit.0.to_string())
 }
 
+#[test]
+fn test_char_to_bitmap() {
+    let font = load_font();
+    assert_eq!(
+        0xffffffffffffffffffffffffffffffff,
+        char_to_bitmap(&font, '█')
+    );
+    assert_eq!(
+        0x00000000000000f0f0f0f0f0f0f0f0f0,
+        char_to_bitmap(&font, '▖')
+    );
+    assert_eq!(
+        0xf0f0f0f0f0f0f0f00000000000000000,
+        char_to_bitmap(&font, '▘')
+    );
+    assert_eq!(
+        0x000000000000001f1f1f1f1f1f1f1f1f,
+        char_to_bitmap(&font, '▗')
+    );
+    assert_eq!(
+        0x1f1f1f1f1f1f1f1f0000000000000000,
+        char_to_bitmap(&font, '▝')
+    );
+    assert_eq!(
+        0x00000000000000000000000000ffffff,
+        char_to_bitmap(&font, '▁')
+    );
+}
+
 fn char_to_bitmap(font: &Font, character: char) -> u128 {
-    // Render the glyph with an 8 pt font
     let mut bitmap = 0;
+    // Render the glyph so it fits in an 8x16 px box
+    // 14. works for Hack. It's font dependent
+    let scale = Scale::uniform(14.);
     let glyph = font
         .glyph(character)
-        .scaled(Scale::uniform(16.))
+        .scaled(scale)
         .positioned(Point { x: 0., y: 0. });
     let bb = glyph.pixel_bounding_box().unwrap();
     let x_starts = bb.min.x as u32;
-    let y_starts = (bb.min.y + 14) as u32;
-    let char_witdth = 8;
+    let y_starts = (bb.min.y + 12) as u32;
+    let width = 8;
     glyph.draw(|x, y, v| {
-        let index = x + x_starts + (y + y_starts) * char_witdth;
+        let index = x + x_starts + width * (y + y_starts);
         if v > 0. {
-            set_bit_at_index(&mut bitmap, index);
+            set_bit_at_index(&mut bitmap, index as u32);
         }
     });
     bitmap
 }
 
 fn load_font() -> Font<'static> {
-    let font_data = include_bytes!("../fonts/unifont-11.0.01.ttf");
+    let font_data = include_bytes!("../fonts/Hack-Regular.ttf");
     let collection = FontCollection::from_bytes(font_data as &[u8]).unwrap_or_else(|e| {
         panic!("error constructing a FontCollection from bytes: {}", e);
     });
