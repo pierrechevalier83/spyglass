@@ -171,19 +171,19 @@ fn test_char_to_bitmap() {
         char_to_bitmap(&font, '█')
     );
     assert_eq!(
-        0x00000000000000f0f0f0f0f0f0f0f0f0,
+        0x00000000000000f8f8f8f8f8f8f8f8f8,
         char_to_bitmap(&font, '▖')
     );
     assert_eq!(
-        0xf0f0f0f0f0f0f0f00000000000000000,
+        0xf8f8f8f8f8f8f8f80000000000000000,
         char_to_bitmap(&font, '▘')
     );
     assert_eq!(
-        0x000000000000001f1f1f1f1f1f1f1f1f,
+        0x000000000000000f0f0f0f0f0f0f0f0f,
         char_to_bitmap(&font, '▗')
     );
     assert_eq!(
-        0x1f1f1f1f1f1f1f1f0000000000000000,
+        0x0f0f0f0f0f0f0f0f0000000000000000,
         char_to_bitmap(&font, '▝')
     );
     assert_eq!(
@@ -194,9 +194,9 @@ fn test_char_to_bitmap() {
 
 fn char_to_bitmap(font: &Font, character: char) -> u128 {
     let mut bitmap = 0;
-    // Render the glyph so it fits in an 8x16 px box
-    // 14. works for Hack. It's font dependent
-    let scale = Scale::uniform(14.);
+    // Render the glyph so it fits in an 8x16 px box (here, 9x16)
+    // 16. works for Hack. It's font dependent
+    let scale = Scale::uniform(16.);
     let glyph = font
         .glyph(character)
         .scaled(scale)
@@ -206,9 +206,13 @@ fn char_to_bitmap(font: &Font, character: char) -> u128 {
     let y_starts = (bb.min.y + 12) as u32;
     let width = 8;
     glyph.draw(|x, y, v| {
-        let index = x + x_starts + width * (y + y_starts);
-        if v > 0. {
-            set_bit_at_index(&mut bitmap, index as u32);
+        let x = x + x_starts;
+        let y = y + y_starts;
+        if x < 8 && y < 16 {
+            let index = x + width * y;
+            if v > 0. {
+                set_bit_at_index(&mut bitmap, index as u32);
+            }
         }
     });
     bitmap
